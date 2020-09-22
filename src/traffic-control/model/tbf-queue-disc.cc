@@ -252,15 +252,23 @@ TbfQueueDisc::DoDequeue (void)
 
           return item;
         }
-
       // the watchdog timer setup.
       /* A packet gets blocked if the above if condition is not satisfied, i.e.
-      both the ptoks and btoks are less than zero. In that case we have to 
+      both the ptoks and btoks are less than zero. In that case we have to
       schedule the waking of queue when enough tokens are available. */
       if (m_id.IsExpired () == true)
         {
-          Time requiredDelayTime = std::max (m_rate.CalculateBytesTxTime (-btoks),
-                                             m_peakRate.CalculateBytesTxTime (-ptoks));
+          Time requiredDelayTime;
+
+          /* PeakRate can be 0bps in which case CalculateBytesTxTime
+          returns 500ms Time value which invalidates the timer set for the
+          watchdog by btoks */
+          if (m_peakRate == DataRate("0bps")){
+            requiredDelayTime = m_rate.CalculateBytesTxTime (-btoks);
+          } else {
+            requiredDelayTime = std::max (m_rate.CalculateBytesTxTime (-btoks),
+                                          m_peakRate.CalculateBytesTxTime (-ptoks));
+          }
 
           m_id = Simulator::Schedule (requiredDelayTime, &QueueDisc::Run, this);
           NS_LOG_LOGIC("Waking Event Scheduled in " << requiredDelayTime);
